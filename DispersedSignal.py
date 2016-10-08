@@ -32,6 +32,7 @@ class dispSig():
         else:
             print 'Selected default unit: Hz'
             self.mag = 1.0
+        self.timeL = 1
         self.fc = fc
         self.bw = bw
         self.dm = dm
@@ -41,6 +42,8 @@ class dispSig():
         self.window = window
     
     def makeSignal(self,n=0):
+        """ Generates a Gaussian pulse given the object's parameters;
+            n: number of samples; if 0, then sampling frequency is used."""
         if n==0:
             n = self.Fs
         bwf = 1.*self.bw/self.fc
@@ -48,6 +51,7 @@ class dispSig():
         self.signal = gausspulse(t,fc=self.fc,bw=bwf,bwr=-3)
     
     def createData(self):
+        """ Adds noise to the signal and calculates FFT."""
         print 'Creating data...'
         noise = np.random.random(len(self.signal))
         self.data = self.SNR*self.signal+noise
@@ -55,8 +59,11 @@ class dispSig():
 #        self.fpower = self.fpower[1:]
         print 'Data created.'
     
-        # Dispersion
+    # Dispersion
     def disperse(self):
+        """ Calculates time dispersion for each frequency, applies it
+            in frequency domain, then calculates inverse FFT to obtain
+            the dispersed signal in time."""
         print 'Calculating dispersion...'
         f = np.fft.rfftfreq(int(self.Fs),d=1/self.Fs)
         pind = np.where(f > 0)
@@ -74,10 +81,6 @@ class dispSig():
     
     # Create Base Bank data
     def createSignal(self):
-    #    BBfreq = np.fft.fftfreq(window,d=1/Fs)
-    ######################
-    #### CREATE DATA
-    ######################
         print 'Creating Base Bank data'
         self.BsBankD = np.abs(np.fft.rfft(self.TimeDisp[0:self.window]))
         BsBankL = len(self.TimeDisp)/self.window-1
@@ -92,22 +95,18 @@ class dispSig():
         print '\nData created'
         
     def showimg(self):
+        """ Show the waterfall plot."""
         plt.figure(1)
         plt.imshow(self.BsBankD.T,origin = "lower",interpolation='nearest',
                    extent=[0,self.timeL,0,self.fPos.max()],aspect='auto',cmap='gnuplot2')
         plt.ylim(self.fPos.min(),self.fPos.max())
         plt.ylabel("Frequency ({})".format(self.unit))
         plt.xlabel("Time (s)")
-        #plt.figure(2)
-        #plt.subplot(2,1,1)
-        #plt.plot(data)
-        #plt.subplot(2,1,2)
-        #plt.plot(DispsTimeSris)
-        #plt.figure(3)
-        #plt.plot(sftT)
         plt.show()
     
     def auto(self,signal=True):
+        """ Runs all functions to create and show a dispersed signal.
+            If signal is False, it does not generate a new Gaussian pulse."""
         if signal: self.makeSignal()
         self.createData()
         self.disperse()
