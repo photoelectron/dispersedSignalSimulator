@@ -32,13 +32,11 @@ class dispSig():
         else:
             print 'Selected default unit: Hz'
             self.mag = 1.0
-#        self.signal = signal
         self.fc = fc
         self.bw = bw
         self.dm = dm
         self.Fs = Fs
         self.SNR = SNR
-        self.timeL = 1 # Time length, not sure how to use
         self.shiftlimit = shiftlimit
         self.window = window
     
@@ -60,14 +58,10 @@ class dispSig():
         # Dispersion
     def disperse(self):
         print 'Calculating dispersion...'
-        f = np.fft.rfftfreq(len(self.data),d=1./self.Fs)
-#        self.fPos = f[1:]
-#        self.fPos = np.linspace(0,self.fc+self.bw/2.,num=len(self.fpower)+1)
-#        self.fPos = self.fPos[1:]  + self.fc - self.bw/2.
-        pind = np.where((f >= self.fc-self.bw/2.) & (f <= self.fc+self.bw/2.))
+        f = np.fft.rfftfreq(int(self.Fs),d=1/self.Fs)
+        pind = np.where(f > 0)
         self.fpower = self.fpower[pind]
         self.fPos = f[pind]
-        
         self.sftT = 4.149e-3*self.dm*(self.mag/self.fPos)**2
         
         indic = np.where(self.sftT>self.shiftlimit)
@@ -78,7 +72,7 @@ class dispSig():
         self.TimeDisp = np.fft.irfft(fpowerShft)
         print 'Dispersion calculated.'
     
-        # Create Base Bank data
+    # Create Base Bank data
     def createSignal(self):
     #    BBfreq = np.fft.fftfreq(window,d=1/Fs)
     ######################
@@ -97,23 +91,10 @@ class dispSig():
             sys.stdout.flush()
         print '\nData created'
         
-    #    freqFile = "FreqAxis.dat"
-    #    f2 = open(freqFile,'w')
-    #    for m in range(window):
-    #    	f2.write(str(BBfreq[m])+' ')
-    #    f2.close()
-    #    f.write(str(BsBankD[:][0]))
-    #    for k in range(339):
-    #    	for j in range(window):
-    #    		f.write(str(BsBankD[k][j])+' ')
-    #    	f.write('\n')
-    #    f.close()
-        
-    #    return BsBankD
     def showimg(self):
         plt.figure(1)
         plt.imshow(self.BsBankD.T,origin = "lower",interpolation='nearest',
-                   extent=[0,self.timeL,self.fPos.min(),self.fPos.max()],aspect='auto',cmap='gnuplot2')
+                   extent=[0,self.timeL,0,self.fPos.max()],aspect='auto',cmap='gnuplot2')
         plt.ylim(self.fPos.min(),self.fPos.max())
         plt.ylabel("Frequency ({})".format(self.unit))
         plt.xlabel("Time (s)")
