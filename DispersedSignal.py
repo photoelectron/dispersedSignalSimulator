@@ -18,8 +18,8 @@ def next_power2(n):
 ## Generate dispersed signal
 
 class dispSig():
-    def __init__(self,fc,bw,dm,Fs,SNR,shiftlimit=200,window=1024,unit='hz'):
-        """ fc: center frequency / bw: bandwidth / dm: Dispersion (pc*cm-3)/ Fs: Sampling Frequency\n
+    def __init__(self,fc,bw,dm,fs,SNR,shiftlimit=200,window=1024,unit='hz'):
+        """ fc: center frequency / bw: bandwidth / dm: Dispersion (pc*cm-3)/ fs: Sampling Frequency\n
         SNR: Signal to Noise Ratio / timeL: Total time (s) / shiftlimit: remove shifts greater than limit\n
         window: length of window (?)"""
         
@@ -36,8 +36,8 @@ class dispSig():
         self.fc = fc
         self.bw = bw
         self.dm = dm
-        self.Fs = Fs
-        self.SNR = SNR
+        self.fs = fs
+        self.snr = SNR
         self.shiftlimit = shiftlimit
         self.window = window
     
@@ -45,16 +45,18 @@ class dispSig():
         """ Generates a Gaussian pulse given the object's parameters;
             n: number of samples; if 0, then sampling frequency is used."""
         if n==0:
-            n = self.Fs
+            n = self.fs
         bwf = 1.*self.bw/self.fc
-        t = np.linspace(-.5,.5,num=n)
+        t = np.linspace(-.1,.1,num=n)
         self.signal = gausspulse(t,fc=self.fc,bw=bwf,bwr=-3)
+        ### Zero padding
+        self.signal = np.pad(self.signal,int(self.fs*2),'constant')
     
     def createData(self):
         """ Adds noise to the signal and calculates FFT."""
         print 'Creating data...'
         noise = np.random.random(len(self.signal))
-        self.data = self.SNR*self.signal+noise
+        self.data = self.snr*self.signal+noise
         self.fpower = np.fft.rfft(self.data)
 #        self.fpower = self.fpower[1:]
         print 'Data created.'
@@ -65,7 +67,7 @@ class dispSig():
             in frequency domain, then calculates inverse FFT to obtain
             the dispersed signal in time."""
         print 'Calculating dispersion...'
-        f = np.fft.rfftfreq(int(self.Fs),d=1/self.Fs)
+        f = np.fft.rfftfreq(int(self.fs),d=1/self.fs)
         pind = np.where(f > 0)
         self.fpower = self.fpower[pind]
         self.fPos = f[pind]
