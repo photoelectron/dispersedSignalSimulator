@@ -18,7 +18,7 @@ def next_power2(n):
 ## Generate dispersed signal
 
 class dispSig():
-    def __init__(self,fc,bw,dm,fs,SNR,shiftlimit=0,window=1024,unit='hz',timeL=1,zpad=False):
+    def __init__(self,fc,bw,dm,fs,SNR,shiftlimit=0,window=1024,unit='hz',timeL=1,zpad=False,bwWin=False):
         """ fc: center frequency / bw: bandwidth / dm: Dispersion (pc*cm-3)/ fs: Sampling Frequency\n
         SNR: Signal to Noise Ratio / timeL: Total time (s) / \n
         shiftlimit: remove shifts greater than limit; if 0, then no removal\n window: length of window\n
@@ -40,34 +40,38 @@ class dispSig():
         self.fs = fs
         self.snr = SNR
         self.shiftlimit = shiftlimit
-        self.window = window
-        self.zpad = zpad
+        self.window = window  # Filter bank data window
+        self.zpad = zpad      # pad the time signal with 0s
+        self.bwWin = bwWin # show only bandwidth range in plot
     
-    def makeSignal(self,n=0):
+    def pureSignal(self):
         """ Generates a Gaussian pulse given the object's parameters;
             n: number of samples; if 0, then sampling frequency is used."""
-        if n==0:
-            n = self.fs
         bwf = 1.*self.bw/self.fc
-        t = np.linspace(-(self.timeL/2.)/self.mag,(self.timeL/2.)/self.mag,num=n)
+        t = np.linspace(-.1/(self.mag),.9/(self.mag),num=self.fs)
+#        t = np.linspace(-.1,.9,num=n)
+        self.dt = abs(t[0]-t[1])
         signal = gausspulse(t,fc=self.fc*self.mag,bw=bwf,bwr=-3)
         ### Zero padding
         if self.zpad:
-            signal = np.pad(signal,int(self.fs*2),'constant')
+            signal = np.pad(signal,((0,int(self.fs*4)),),'constant')
+        self.timeL = self.dt*len(signal)
         return signal
     
-    def createData(self,signal):
-        """ Adds noise to the signal and calculates FFT."""
+    def tSignal(self,signal):
+        """ Adds noise to the signal."""
         print 'Creating data...'
         noise = np.random.random(len(signal))
         tData = self.snr*signal+noise
         print 'Data created.'
         return tData
     
-    def calcFFT(self,tData):
+    def fSignal(self,tData):
         """ Transforms time domain signal to freq domain"""
         fData = np.fft.rfft(tData)
-        f = np.fft.rfftfreq(int(self.fs),d=1/self.fs)
+#        fData = fData[1:]
+#        f = np.fft.rfftfreq(int(self.fs),d=1/self.fs)
+        f = np.fft.fftfreq(len(tData),d=1/self.fs)
         pind = np.where(f > 0)
         fData = fData[pind]
         self.fPos = f[pind]
@@ -111,8 +115,10 @@ class dispSig():
         """ Show the waterfall plot."""
         plt.figure(1)
         plt.imshow(img.T,origin = "lower",interpolation='nearest',
-                   extent=[-self.timeL/2.,self.timeL/2.,0,self.fPos.max()],aspect='auto',cmap='gnuplot2')
-        plt.ylim(self.fPos.min(),self.fPos.max())
+                   extent=[0,self.timeL,0,self.fPos.max()],aspect='auto',cmap='gnuplot2')
+        if self.bwWin:
+            plt.ylim(self.fc-self.bw/2.,self.fc+self.bw/2.)
+        plt.xlim(0,self.timeL/4)
         plt.ylabel("Frequency ({})".format(self.unit))
         plt.xlabel("Time (s)")
         plt.show()
@@ -130,9 +136,9 @@ class dispSig():
         """ Runs all functions to create and show a dispersed signal.
             If signal is False, it does not generate a new Gaussian pulse."""
         if signal: 
-            signal = self.makeSignal()
-        tData = self.createData(signal)
-        fData = self.calcFFT(tData)
+            signal = self.pureSignal()
+        tData = self.tSignal(signal)
+        fData = self.fSignal(tData)
         dispData = self.disperse(fData)
         fbData = self.createSignal(dispData)
         self.showimg(fbData)
